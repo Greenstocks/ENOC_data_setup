@@ -136,6 +136,28 @@ names(a)[3] <- "strength"
 
 edges_new <- a[rep(seq.int(1,nrow(a)), a$strength), 1:2]
 
+
+
+#create strength csv--------
+
+total <- data.frame()
+for(test in 1:nrow(nodes)){
+  needle <- nodes[test,1]
+  
+  haystack <- subset(edges_new, from == needle | to == needle)
+  
+  temp <- nrow(haystack)
+  total <- rbind(total, temp)
+  
+}
+
+nodes <- cbind(nodes, total)
+colnames(nodes)[1] <- "repos"
+colnames(nodes)[2] <- "strength"
+
+write.csv(nodes, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/nodes.csv" )
+
+#plot graphs---------
 library(igraph)
 
 routes_igraph <- graph_from_data_frame(d = edges_new,
@@ -202,21 +224,37 @@ Sys.timezone()
 
 net_results$r_lib.owner_date_crea <- as.POSIXlt(net_results$r_lib.owner_date_crea)
 
+net_results <- cbind(newColName = rownames(net_results), net_results)
+rownames(net_results) <- 1:nrow(net_results)
+
+net_results <- subset(net_results, newColName %in% edges_new$from | newColName %in% edges_new$to)
+
+
+
+#get time
 d3 <- as.POSIXlt("2024-04-11")
 net_results$age <- d3 - net_results$r_lib.owner_date_crea
 net_results$age <- as.numeric(as.character(net_results$age))
 net_results$age <- net_results$age/max(net_results$age)
 
+
+#first plot
 install.packages("viridis")  # Install
 library("viridis")           # Load
 
+
+sn_colorrange <- colorRampPalette(c("yellow", "orange", "red", "darkred"))
+sn_color <- sn_colorrange(net_results$age)
+
+n_bins <- 5
+sn_color <- sn_colorrange(n_bins)
 
 
 V(routes_igraph)$size <- 6
 
 V(routes_igraph)$frame.color <- "white"
 
-V(routes_igraph)$color <- net_results$age
+V(routes_igraph)$color <- sn_color[cut(net_results$age, breaks=n_bins )]
 
 V(routes_igraph)$label <- "" 
 
@@ -249,26 +287,9 @@ mtext("qgraph.layout.fruchtermanreingold default", side=1)
 
 l <- qgraph.layout.fruchtermanreingold(e,vcount=vcount(g),
                                        area=8*(vcount(g)^2),repulse.rad=(vcount(g)^3.1))
-plot(g,layout=l,vertex.size=4,vertex.label=NA) +
-  geom_point(aes(color = (net_results$age*100))) 
+plot(g,layout=l,vertex.size=4,vertex.label=NA)
 
 mtext("qgraph.layout.fruchtermanreingold modified", side=1)
 
 
-total <- data.frame()
-for(test in 1:nrow(nodes)){
-  needle <- nodes[test,1]
-  
-  haystack <- subset(edges_new, from == needle | to == needle)
-  
-  temp <- nrow(haystack)
-  total <- rbind(total, temp)
-  
-}
-
-nodes <- cbind(nodes, total)
-colnames(nodes)[1] <- "repos"
-colnames(nodes)[2] <- "strength"
-
-write.csv(nodes, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/nodes.csv" )
 
