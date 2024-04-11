@@ -51,6 +51,7 @@ if (length(owner_reps) == 100){
 r_lib <- data.frame(owner_reps, owner_stars,owner_date_crea,owner_date_update, owner_forks )
 
 
+#save(r_lib, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-repos.Rdata" )
 
 result <- data.frame()
 #get all contributors of repos
@@ -75,6 +76,7 @@ for(id in 1:nrow(r_lib)){
 
 #create adjacency matrix from object for rep network---------
 
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-repos.Rdata" )
 load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-list.Rdata")
 
 colnames(result)[1] <- "repos"
@@ -134,6 +136,7 @@ names(a)[3] <- "strength"
 
 edges_new <- a[rep(seq.int(1,nrow(a)), a$strength), 1:2]
 
+library(igraph)
 
 routes_igraph <- graph_from_data_frame(d = edges_new,
                                        vertices = nodes,
@@ -188,14 +191,32 @@ eigen <- eigen_centrality(routes_igraph)
 coreness <- data.frame(graph.coreness(routes_igraph))
 constraint <- igraph::constraint(routes_igraph)
 
-net_results <- data.frame(eigen$vector, coreness[1], constraint)
+#cluster <- cluster_edge_betweenness(routes_igraph)
+
+
+
+net_results <- data.frame(eigen$vector, coreness[1], constraint, r_lib$owner_stars, r_lib$owner_date_crea)
+Sys.timezone()
+
+
+
+net_results$r_lib.owner_date_crea <- as.POSIXlt(net_results$r_lib.owner_date_crea)
+
+d3 <- as.POSIXlt("2024-04-11")
+net_results$age <- d3 - net_results$r_lib.owner_date_crea
+net_results$age <- as.numeric(as.character(net_results$age))
+net_results$age <- net_results$age/max(net_results$age)
+
+install.packages("viridis")  # Install
+library("viridis")           # Load
+
 
 
 V(routes_igraph)$size <- 6
 
 V(routes_igraph)$frame.color <- "white"
 
-V(routes_igraph)$color <- if_else(net_results$constraint > 0.06, "orange", "green")
+V(routes_igraph)$color <- net_results$age
 
 V(routes_igraph)$label <- "" 
 
@@ -205,8 +226,13 @@ l <- layout_with_fr(routes_igraph)
 
 plot(routes_igraph, layout=l)
 
+
+
+#try plotting with qgraph-----------
 #install.packages("qgraph")
 library(qgraph)
+
+print("run")
 
 g <- routes_igraph
 
@@ -223,5 +249,26 @@ mtext("qgraph.layout.fruchtermanreingold default", side=1)
 
 l <- qgraph.layout.fruchtermanreingold(e,vcount=vcount(g),
                                        area=8*(vcount(g)^2),repulse.rad=(vcount(g)^3.1))
-plot(g,layout=l,vertex.size=4,vertex.label=NA)
+plot(g,layout=l,vertex.size=4,vertex.label=NA) +
+  geom_point(aes(color = (net_results$age*100))) 
+
 mtext("qgraph.layout.fruchtermanreingold modified", side=1)
+
+
+total <- data.frame()
+for(test in 1:nrow(nodes)){
+  needle <- nodes[test,1]
+  
+  haystack <- subset(edges_new, from == needle | to == needle)
+  
+  temp <- nrow(haystack)
+  total <- rbind(total, temp)
+  
+}
+
+nodes <- cbind(nodes, total)
+colnames(nodes)[1] <- "repos"
+colnames(nodes)[2] <- "strength"
+
+write.csv(nodes, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/nodes.csv" )
+
