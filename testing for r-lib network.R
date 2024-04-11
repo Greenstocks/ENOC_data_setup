@@ -33,7 +33,7 @@ req$
 
 get_contributors(org = "r-lib", repo = "pkgcache")
 
-?gh
+print("this is luca")
 #examples
 
 my_repos <- gh("GET /users/{username}/repos", username = "glenn-jocher", token = gtoken)
