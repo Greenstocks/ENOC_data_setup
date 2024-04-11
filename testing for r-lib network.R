@@ -76,3 +76,8 @@ for(id in 1:nrow(r_lib)){
 #create adjacency matrix from object---------
 
 length(unique(result$contris))
+
+
+#create adjacency matrix for contributors (N= 1099) - edge list (from-to list)
+
+
