@@ -73,11 +73,155 @@ for(id in 1:nrow(r_lib)){
 #save(result, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-list.Rdata" )
 
 
-#create adjacency matrix from object---------
+#create adjacency matrix from object for rep network---------
 
-length(unique(result$contris))
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-list.Rdata")
+
+colnames(result)[1] <- "repos"
+
+nodes <- data.frame((unique(result$repos)))
+
+edges <- data.frame()
 
 
-#create adjacency matrix for contributors (N= 1099) - edge list (from-to list)
+for (noddy in 1:nrow(nodes)){
+  
+  node <- nodes[noddy,1]
+  
+  #list of parts in node
+  parts_on <- subset(result, repos == node)
+  
+  #list of some parts in other games (nodes)
+  parts_of <- subset(result, contris %in% parts_on$contris)
+  
+  if(nrow(parts_on) < nrow(parts_of)){
+    
+    #just the other nodes
+    parts_ofc <- unique(parts_of$repos)
+    parts_ofc <- parts_ofc[! parts_ofc %in% node]
+    
+    tie <- data.frame()
+    
+    for (luca in 1:length(parts_ofc)){
+      
+      tie_s <- nrow(subset(parts_of, repos == parts_ofc[luca]))
+      tie <- rbind(tie, tie_s)
+      
+    }
+    
+    edges_id <- data.frame(cbind(node, parts_ofc))
+    
+    edges_id$temp <- apply(edges_id, 1, function(x) paste(sort(x), collapse= ""))
+    
+    edges_id$tie_s <- tie[,1]
+    names(edges_id)[4] <- "tie_s"
+    
+    edges <- rbind(edges, edges_id)
+    
+    print(noddy)
+    
+  }
+  
+  
+}
+
+a <- edges[!duplicated(edges$temp),]
+a <- a[,c(1:2,4)]
+
+names(a)[1] <- "from"
+names(a)[2] <- "to"
+names(a)[3] <- "strength"
+
+edges_new <- a[rep(seq.int(1,nrow(a)), a$strength), 1:2]
 
 
+routes_igraph <- graph_from_data_frame(d = edges_new,
+                                       vertices = nodes,
+                                       directed = FALSE)
+
+
+
+V(routes_igraph)$size <- 8
+
+V(routes_igraph)$frame.color <- "white"
+
+V(routes_igraph)$color <- "orange"
+
+V(routes_igraph)$label <- "" 
+
+E(routes_igraph)$arrow.mode <- 0
+
+l <- layout_with_fr(routes_igraph)
+
+plot(routes_igraph, layout=l)
+
+
+#test to remove isolates and craete some fun graphs----------
+colnames(nodes)[1] <- "contris"
+
+nodes2 <- subset(nodes, contris %in% edges_new$from | contris %in% edges_new$to)
+
+
+
+routes_igraph <- graph_from_data_frame(d = edges_new,
+                                       vertices = nodes2,
+                                       directed = FALSE)
+
+
+
+V(routes_igraph)$size <- 6
+
+V(routes_igraph)$frame.color <- "white"
+
+V(routes_igraph)$color <- "orange"
+
+V(routes_igraph)$label <- "" 
+
+E(routes_igraph)$arrow.mode <- 0
+
+l <- layout_with_fr(routes_igraph)
+
+plot(routes_igraph, layout=l)
+
+
+eigen <- eigen_centrality(routes_igraph)
+coreness <- data.frame(graph.coreness(routes_igraph))
+constraint <- igraph::constraint(routes_igraph)
+
+net_results <- data.frame(eigen$vector, coreness[1], constraint)
+
+
+V(routes_igraph)$size <- 6
+
+V(routes_igraph)$frame.color <- "white"
+
+V(routes_igraph)$color <- if_else(net_results$constraint > 0.06, "orange", "green")
+
+V(routes_igraph)$label <- "" 
+
+E(routes_igraph)$arrow.mode <- 0
+
+l <- layout_with_fr(routes_igraph)
+
+plot(routes_igraph, layout=l)
+
+#install.packages("qgraph")
+library(qgraph)
+
+g <- routes_igraph
+
+png("plot1.png", height=6, width=12, units="in", res=250)
+par(mfrow=c(1, 3))
+
+plot(g,layout=layout_with_fr,vertex.size=4,vertex.label=NA)
+mtext("layout_with_fr", side=1)
+
+e <- get.edgelist(g,names=FALSE)
+l <- qgraph.layout.fruchtermanreingold(e,vcount=vcount(g))
+plot(g,layout=l,vertex.size=4,vertex.label=NA)
+mtext("qgraph.layout.fruchtermanreingold default", side=1)
+
+l <- qgraph.layout.fruchtermanreingold(e,vcount=vcount(g),
+                                       area=8*(vcount(g)^2),repulse.rad=(vcount(g)^3.1))
+plot(g,layout=l,vertex.size=4,vertex.label=NA)
+mtext("qgraph.layout.fruchtermanreingold modified", side=1)
