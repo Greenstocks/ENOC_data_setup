@@ -27,13 +27,13 @@ gtoken <- config(token = github_token)
 
 req <- GET("https://api.github.com/users/glenn-jocher/repos", gtoken)
 
-req$
+
   
   a <- GET("https://api.github.com/search/issues?q=type%3apr+state%3aclosed+author%3amegawac&per_page=100&page=1")
 
 get_contributors(org = "r-lib", repo = "pkgcache")
 
-?gh
+print("This is Lukas")
 #examples
 
 my_repos <- gh("GET /users/{username}/repos", username = "glenn-jocher", token = gtoken)
