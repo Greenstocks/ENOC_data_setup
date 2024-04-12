@@ -293,3 +293,72 @@ mtext("qgraph.layout.fruchtermanreingold modified", side=1)
 
 
 
+
+
+#try get timpestamped commits----
+
+
+n <- 9999
+final_info <- data.frame()
+info <- data.frame()
+
+for(run_rep in 1:nrow(r_lib)){
+repo_run <- r_lib[run_rep,1]
+
+
+for(pages_xy in 1:n){
+  my_repos <- gh("GET /repos/{owner}/{repo}/commits", owner = "r-lib", repo = repo_run,  per_page = 100, page = pages_xy)
+  print(repo_run)
+  
+  
+  for(list in 1:length(my_repos)){
+    
+    if(is.null(my_repos[[list]]$commit$author$date) == FALSE){
+      temp_date <-my_repos[[list]]$commit$author$date
+    } else {
+      temp_date <- NA
+    }
+    
+    if(is.null(my_repos[[list]]$commit$message) == FALSE){
+      temp_message <- my_repos[[list]]$commit$message
+    } else {
+      temp_message <- NA
+    }
+    
+    if(is.null(my_repos[[list]]$author$login) == FALSE){
+      temp_login <- my_repos[[list]]$author$login
+    } else {
+      temp_login <- NA
+    }
+    
+    if(is.null(my_repos[[list]]$author$type) == FALSE){
+      temp_type <- my_repos[[list]]$author$type
+    } else {
+      temp_type <- NA
+    }
+    
+    temp_data <- cbind(temp_login, temp_date, temp_type, temp_message)
+    
+    info <- rbind(info, temp_data)
+  }
+  
+  if(length(my_repos) != 100){
+      break} else {
+        print(pages_xy)
+      }
+  
+}
+
+
+info$repo <- repo_run
+final_info <- rbind(final_info, info)
+info <- data.frame()
+}
+
+
+#get comments--------
+my_repos_com <- gh("GET /repos/{owner}/{repo}/pulls/comments", owner = "r-lib", repo ="httr")
+
+my_repos_com_com <- gh("GET /repos/{owner}/{repo}/pulls/comments/{comment_id}", owner = "r-lib", repo ="xmlparsedata",
+                       comment_id = 313814067)
+
