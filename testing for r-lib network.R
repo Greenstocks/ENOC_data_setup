@@ -13,6 +13,8 @@ library(allcontributors)
 
 library(tidyverse)
 
+library(igraph)
+
 #token generation-------------------------------------------------
 
 # Can be github, linkedin etc depending on application
@@ -158,7 +160,6 @@ colnames(nodes)[2] <- "strength"
 write.csv(nodes, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/nodes.csv" )
 
 #plot graphs---------
-library(igraph)
 
 routes_igraph <- graph_from_data_frame(d = edges_new,
                                        vertices = nodes,
@@ -408,76 +409,106 @@ for(cuts in 1:10){
  
 }
 
-#take first age group
+#loop groups-----
 
-final_info_age_group <- subset(final_info, age > cutoffs[1])
-
-age_nodes <- data.frame(unique(final_info_age_group$repo))
-
-edges_start <- final_info_age_group %>%
-  group_by(temp_login) %>% # or: group_by_at(vars(-score))
-  count(repo)
-
-edges_time <- data.frame()
-
-
-for (noddy in 1:nrow(age_nodes)){
+for(groupies in 1:length(cutoffs)){
   
-  node <- age_nodes[noddy,1]
+  if(groupies == 10){
+    final_info_age_group <- final_info
+  } else {
+    final_info_age_group <- subset(final_info, age > cutoffs[10-groupies])
+  }
+
+  age_nodes <- data.frame(unique(final_info_age_group$repo))
   
-  #list of parts in node
-  parts_on <- subset(edges_start, repo == node)
+  edges_start <- final_info_age_group %>%
+    group_by(temp_login) %>% # or: group_by_at(vars(-score))
+    count(repo)
   
-  #list of some parts in other games (nodes)
-  parts_of <- subset(edges_start, temp_login %in% parts_on$temp_login)
+  edges_time <- data.frame()
   
-  if(nrow(parts_on) < nrow(parts_of)){
+  
+  for (noddy in 1:nrow(age_nodes)){
     
-    #just the other nodes
-    parts_ofc <- unique(parts_of$repo)
-    parts_ofc <- parts_ofc[! parts_ofc %in% node]
+    node <- age_nodes[noddy,1]
     
-    tie <- data.frame()
+    #list of parts in node
+    parts_on <- subset(edges_start, repo == node)
     
-    for (luca in 1:length(parts_ofc)){
+    #list of some parts in other games (nodes)
+    parts_of <- subset(edges_start, temp_login %in% parts_on$temp_login)
+    
+    if(nrow(parts_on) < nrow(parts_of)){
       
-      tie_s <- nrow(subset(parts_of, repo == parts_ofc[luca]))
-      tie <- rbind(tie, tie_s)
+      #just the other nodes
+      parts_ofc <- unique(parts_of$repo)
+      parts_ofc <- parts_ofc[! parts_ofc %in% node]
+      
+      tie <- data.frame()
+      
+      for (luca in 1:length(parts_ofc)){
+        
+        tie_s <- nrow(subset(parts_of, repo == parts_ofc[luca]))
+        tie <- rbind(tie, tie_s)
+        
+      }
+      
+      edges_id <- data.frame(cbind(node, parts_ofc))
+      
+      edges_id$temp <- apply(edges_id, 1, function(x) paste(sort(x), collapse= ""))
+      
+      edges_id$tie_s <- tie[,1]
+      names(edges_id)[4] <- "tie_s"
+      
+      edges_time <- rbind(edges_time, edges_id)
+      
+      print(noddy)
       
     }
     
-    edges_id <- data.frame(cbind(node, parts_ofc))
-    
-    edges_id$temp <- apply(edges_id, 1, function(x) paste(sort(x), collapse= ""))
-    
-    edges_id$tie_s <- tie[,1]
-    names(edges_id)[4] <- "tie_s"
-    
-    edges_time <- rbind(edges_time, edges_id)
-    
-    print(noddy)
     
   }
   
+  a <- edges_time[!duplicated(edges_time$temp),]
+  a <- a[,c(1:2,4)]
   
+  names(a)[1] <- "from"
+  names(a)[2] <- "to"
+  names(a)[3] <- "strength"
+  
+  edges_new <- a[rep(seq.int(1,nrow(a)), a$strength), 1:2]
+  
+  routes_igraph <- graph_from_data_frame(d = edges_new,
+                                         vertices = age_nodes,
+                                         directed = FALSE)
+  
+  
+  nam <- paste("Network_A", groupies, sep = "")
+  
+  assign(paste0(nam), routes_igraph)
+  
+  print(nam)
 }
 
-a <- edges_time[!duplicated(edges_time$temp),]
-a <- a[,c(1:2,4)]
+networks_by_time <- c(Network_A1, Network_A2, Network_A3, Network_A4, Network_A5, Network_A6, Network_A7, Network_A8, 
+                            Network_A9, Network_A10)
 
-names(a)[1] <- "from"
-names(a)[2] <- "to"
-names(a)[3] <- "strength"
+routes_igraph <- networks_by_time[1:10]
 
-edges_new <- a[rep(seq.int(1,nrow(a)), a$strength), 1:2]
+
+eigen <- eigen_centrality(routes_igraph)
+coreness <- data.frame(graph.coreness(routes_igraph))
+constraint <- igraph::constraint(routes_igraph)
+
+#cluster <- cluster_edge_betweenness(routes_igraph)
+
+
+
+net_results <- data.frame(eigen$vector, coreness[1], constraint, r_lib$owner_stars, r_lib$owner_date_crea)
+
+
 
 #plot network
-library(igraph)
-
-routes_igraph <- graph_from_data_frame(d = edges_new,
-                                       vertices = age_nodes,
-                                       directed = FALSE)
-
 V(routes_igraph)$size <- 8
 V(routes_igraph)$frame.color <- "white"
 V(routes_igraph)$color <- "orange"
@@ -487,4 +518,9 @@ E(routes_igraph)$arrow.mode <- 0
 l <- layout_with_fr(routes_igraph)
 
 plot(routes_igraph, layout=l)
+
+
+
+
+
 
