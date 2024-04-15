@@ -310,6 +310,10 @@ for(pages_xy in 1:n){
   my_repos <- gh("GET /repos/{owner}/{repo}/commits", owner = "r-lib", repo = repo_run,  per_page = 100, page = pages_xy)
   print(repo_run)
   
+  if(is.null(my_repos) == TRUE){
+    break} else {
+      print(pages_xy)
+    }
   
   for(list in 1:length(my_repos)){
     
@@ -355,6 +359,7 @@ final_info <- rbind(final_info, info)
 info <- data.frame()
 }
 
+save(final_info, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-info-network-Tsed.Rdata" )
 
 #get comments--------
 my_repos_com <- gh("GET /repos/{owner}/{repo}/pulls/comments", owner = "r-lib", repo ="httr")
