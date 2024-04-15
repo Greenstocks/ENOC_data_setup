@@ -409,39 +409,39 @@ for(cuts in 1:10){
 }
 
 #take first age group
-nodes_group <- subset(r_lib, age_group == 10)
 
-nodes_group_list <- data.frame((unique(nodes_group$owner_reps)))
-final_info_age_group <- subset(final_info, age > cutoffs[9])
-
-#this is if we want the middling groups
-#final_info_age_group <- subset(final_info, age > cutoffs[8])
-#final_info_age_group <- subset(final_info_age_group, age < cutoffs[9])
+final_info_age_group <- subset(final_info, age > cutoffs[1])
 
 age_nodes <- data.frame(unique(final_info_age_group$repo))
 
+edges_start <- final_info_age_group %>%
+  group_by(temp_login) %>% # or: group_by_at(vars(-score))
+  count(repo)
 
-for (noddy in 1:nrow(nodes)){
+edges_time <- data.frame()
+
+
+for (noddy in 1:nrow(age_nodes)){
   
-  node <- nodes[noddy,1]
+  node <- age_nodes[noddy,1]
   
   #list of parts in node
-  parts_on <- subset(result, repos == node)
+  parts_on <- subset(edges_start, repo == node)
   
   #list of some parts in other games (nodes)
-  parts_of <- subset(result, contris %in% parts_on$contris)
+  parts_of <- subset(edges_start, temp_login %in% parts_on$temp_login)
   
   if(nrow(parts_on) < nrow(parts_of)){
     
     #just the other nodes
-    parts_ofc <- unique(parts_of$repos)
+    parts_ofc <- unique(parts_of$repo)
     parts_ofc <- parts_ofc[! parts_ofc %in% node]
     
     tie <- data.frame()
     
     for (luca in 1:length(parts_ofc)){
       
-      tie_s <- nrow(subset(parts_of, repos == parts_ofc[luca]))
+      tie_s <- nrow(subset(parts_of, repo == parts_ofc[luca]))
       tie <- rbind(tie, tie_s)
       
     }
@@ -453,7 +453,7 @@ for (noddy in 1:nrow(nodes)){
     edges_id$tie_s <- tie[,1]
     names(edges_id)[4] <- "tie_s"
     
-    edges <- rbind(edges, edges_id)
+    edges_time <- rbind(edges_time, edges_id)
     
     print(noddy)
     
@@ -462,7 +462,7 @@ for (noddy in 1:nrow(nodes)){
   
 }
 
-a <- edges[!duplicated(edges$temp),]
+a <- edges_time[!duplicated(edges_time$temp),]
 a <- a[,c(1:2,4)]
 
 names(a)[1] <- "from"
@@ -471,6 +471,20 @@ names(a)[3] <- "strength"
 
 edges_new <- a[rep(seq.int(1,nrow(a)), a$strength), 1:2]
 
+#plot network
+library(igraph)
 
+routes_igraph <- graph_from_data_frame(d = edges_new,
+                                       vertices = age_nodes,
+                                       directed = FALSE)
 
+V(routes_igraph)$size <- 8
+V(routes_igraph)$frame.color <- "white"
+V(routes_igraph)$color <- "orange"
+V(routes_igraph)$label <- "" 
+
+E(routes_igraph)$arrow.mode <- 0
+l <- layout_with_fr(routes_igraph)
+
+plot(routes_igraph, layout=l)
 
