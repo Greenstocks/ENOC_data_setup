@@ -181,7 +181,7 @@ l <- layout_with_fr(routes_igraph)
 plot(routes_igraph, layout=l)
 
 
-#test to remove isolates and craete some fun graphs----------
+#test to remove isolates and create some fun graphs with time----------
 colnames(nodes)[1] <- "contris"
 
 nodes2 <- subset(nodes, contris %in% edges_new$from | contris %in% edges_new$to)
@@ -294,7 +294,6 @@ mtext("qgraph.layout.fruchtermanreingold modified", side=1)
 
 
 
-
 #try get timpestamped commits----
 
 
@@ -364,6 +363,114 @@ save(final_info, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-info-netwo
 #get comments--------
 my_repos_com <- gh("GET /repos/{owner}/{repo}/pulls/comments", owner = "r-lib", repo ="httr")
 
+my_repos_com[[1]]$body
+
 my_repos_com_com <- gh("GET /repos/{owner}/{repo}/pulls/comments/{comment_id}", owner = "r-lib", repo ="xmlparsedata",
                        comment_id = 313814067)
+
+#make timestamped network----
+
+
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-info-network-Tsed.Rdata" )
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-repos.Rdata")
+
+
+#drop na
+final_info <- drop_na(final_info)
+
+nodes <- data.frame((unique(final_info$repo)))
+
+
+#time work conversion
+r_lib$owner_date_crea <- as.POSIXlt(r_lib$owner_date_crea)
+d3 <- as.POSIXlt("2024-04-15")
+
+r_lib$age <- d3 - r_lib$owner_date_crea
+r_lib$age <- as.numeric(as.character(r_lib$age))
+#r_lib$age <- r_lib$age/max(r_lib$age)
+
+
+final_info$temp_date <- as.POSIXlt(final_info$temp_date)
+final_info$age <- d3 - final_info$temp_date
+final_info$age <- as.numeric(as.character(final_info$age))
+
+#create age groups
+cutoffs <- quantile(r_lib$age, probs = seq(0.1,1,length=10))
+r_lib$age_group <- 0
+
+for(cuts in 1:10){
+  
+  if(cuts > 1){
+    r_lib$age_group <- if_else(r_lib$age <= cutoffs[cuts] & r_lib$age > cutoffs[cuts-1], cuts, r_lib$age_group)
+  } else {
+    r_lib$age_group <- if_else(r_lib$age <= cutoffs[cuts], cuts, r_lib$age_group)
+  }
+ 
+}
+
+#take first age group
+nodes_group <- subset(r_lib, age_group == 10)
+
+nodes_group_list <- data.frame((unique(nodes_group$owner_reps)))
+final_info_age_group <- subset(final_info, age > cutoffs[9])
+
+#this is if we want the middling groups
+#final_info_age_group <- subset(final_info, age > cutoffs[8])
+#final_info_age_group <- subset(final_info_age_group, age < cutoffs[9])
+
+age_nodes <- data.frame(unique(final_info_age_group$repo))
+
+
+for (noddy in 1:nrow(nodes)){
+  
+  node <- nodes[noddy,1]
+  
+  #list of parts in node
+  parts_on <- subset(result, repos == node)
+  
+  #list of some parts in other games (nodes)
+  parts_of <- subset(result, contris %in% parts_on$contris)
+  
+  if(nrow(parts_on) < nrow(parts_of)){
+    
+    #just the other nodes
+    parts_ofc <- unique(parts_of$repos)
+    parts_ofc <- parts_ofc[! parts_ofc %in% node]
+    
+    tie <- data.frame()
+    
+    for (luca in 1:length(parts_ofc)){
+      
+      tie_s <- nrow(subset(parts_of, repos == parts_ofc[luca]))
+      tie <- rbind(tie, tie_s)
+      
+    }
+    
+    edges_id <- data.frame(cbind(node, parts_ofc))
+    
+    edges_id$temp <- apply(edges_id, 1, function(x) paste(sort(x), collapse= ""))
+    
+    edges_id$tie_s <- tie[,1]
+    names(edges_id)[4] <- "tie_s"
+    
+    edges <- rbind(edges, edges_id)
+    
+    print(noddy)
+    
+  }
+  
+  
+}
+
+a <- edges[!duplicated(edges$temp),]
+a <- a[,c(1:2,4)]
+
+names(a)[1] <- "from"
+names(a)[2] <- "to"
+names(a)[3] <- "strength"
+
+edges_new <- a[rep(seq.int(1,nrow(a)), a$strength), 1:2]
+
+
+
 
