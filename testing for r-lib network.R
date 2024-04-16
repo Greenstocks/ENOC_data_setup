@@ -478,22 +478,30 @@ for(groupies in 1:length(cutoffs)){
   
   edges_new <- a[rep(seq.int(1,nrow(a)), a$strength), 1:2]
   
-  routes_igraph <- graph_from_data_frame(d = edges_new,
-                                         vertices = age_nodes,
-                                         directed = FALSE)
   
+  nam_e <- paste("Network_E", groupies, sep = "")
+  nam_n <- paste("Network_N", groupies, sep = "")
   
-  nam <- paste("Network_A", groupies, sep = "")
+  assign(paste0(nam_e), edges_new)
+  assign(paste0(nam_n), age_nodes)
   
-  assign(paste0(nam), routes_igraph)
-  
-  print(nam)
+  print(nam_e)
 }
 
-networks_by_time <- c(Network_A1, Network_A2, Network_A3, Network_A4, Network_A5, Network_A6, Network_A7, Network_A8, 
-                            Network_A9, Network_A10)
+edges_by_time <- list(Network_E1, Network_E2, Network_E3, Network_E4, Network_E5, Network_E6, Network_E7, Network_E8, 
+                            Network_E9, Network_E10)
 
-routes_igraph <- networks_by_time[1:10]
+
+nodes_by_time <- list(Network_N1, Network_N2, Network_N3, Network_N4, Network_N5, Network_N6, Network_N7, Network_N8, 
+                      Network_N9, Network_N10)
+
+#create network and calculate properties
+install.packages("manynet")
+
+routes_igraph <- graph_from_data_frame(d = edges_by_time[1],
+                                       vertices = nodes_by_time[1],
+                                       directed = FALSE)
+
 
 
 eigen <- eigen_centrality(routes_igraph)
@@ -506,7 +514,7 @@ constraint <- igraph::constraint(routes_igraph)
 
 net_results <- data.frame(eigen$vector, coreness[1], constraint, r_lib$owner_stars, r_lib$owner_date_crea)
 
-
+routes_igraph <- Network_A3
 
 #plot network
 V(routes_igraph)$size <- 8
