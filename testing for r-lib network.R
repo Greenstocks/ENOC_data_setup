@@ -359,7 +359,7 @@ final_info <- rbind(final_info, info)
 info <- data.frame()
 }
 
-save(final_info, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-info-network-Tsed.Rdata" )
+#save(final_info, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-info-network-Tsed.Rdata" )
 
 #get comments--------
 my_repos_com <- gh("GET /repos/{owner}/{repo}/pulls/comments", owner = "r-lib", repo ="httr")
@@ -496,30 +496,98 @@ nodes_by_time <- list(Network_N1, Network_N2, Network_N3, Network_N4, Network_N5
                       Network_N9, Network_N10)
 
 #create network and calculate properties
-install.packages("manynet")
 
-routes_igraph <- graph_from_data_frame(d = edges_by_time[1],
-                                       vertices = nodes_by_time[1],
+props <- data.frame()
+for(groupies in 1:length(edges_by_time)){
+  nam_e <- paste("Time_group_", groupies, sep = "")
+  
+  routes_igraph <- graph_from_data_frame(d = edges_by_time[groupies],
+                                         vertices = nodes_by_time[groupies],
+                                         directed = FALSE)
+  
+  
+  ED <- edge_density(routes_igraph, loops=F)
+  TR <- transitivity(routes_igraph, type="global")
+  DI <- diameter(routes_igraph, directed=F)
+  
+  #degree(routes_igraph, mode="all")
+  #deg.dist <- degree_distribution(routes_igraph, cumulative=T, mode="all")
+  #plot( x=0:max(deg), y=1-deg.dist, pch=19, cex=1.2, col="orange",
+  #xlab="Degree", ylab="Cumulative Frequency")
+  
+  MD <- mean_distance(routes_igraph, directed=F)
+  
+  #clique <- cliques(routes_igraph) # list of cliques
+  #sapply(cliques(routes_igraph), length) # clique sizes
+  #largest_cliques(routes_igraph) # cliques with max number of nodes
+  
+  #cluster
+  ceb <- cluster_edge_betweenness(routes_igraph)
+  #dendPlot(ceb, mode="hclust")
+  
+  Num_Clu <- length(unique(ceb$membership))
+  Max_Clu <- max(table(ceb$membership))
+  
+  #centrality
+  eigen <- eigen_centrality(routes_igraph)
+  ESD <- sd(eigen[1]$vector)
+  
+  #coreness
+  coreness <- data.frame(graph.coreness(routes_igraph))
+  M_cor <- max(coreness[1])
+  SD_cor <- sd(coreness[1]$graph.coreness.routes_igraph.)
+  
+  #constraint
+  constraint <- drop_na(data.frame(igraph::constraint(routes_igraph)))
+  SD_con <- sd(constraint[1]$igraph..constraint.routes_igraph.)
+  
+  
+  #combine
+  
+  net_results <- data.frame(nam_e, ED, TR, DI, MD, Num_Clu, Max_Clu, ESD, M_cor, SD_cor, SD_con)
+  props <- rbind(props, net_results)
+  print(nam_e)
+}
+
+#plots----------
+
+library(ggplot2)
+library(reshape)
+
+props$year_clu <- seq(1:10)
+plot(props$year_clu, props$Num_Clu)
+
+props2 <- props[2:12]
+
+for(cols in 1:(ncol(props2)-1)){
+  
+  props2[[cols]] <- (props2[[cols]]-mean(props2[[cols]]))/(sd(props2[[cols]]))
+  
+}
+
+Molten <- melt(props2, id.vars = "year_clu")
+ggplot(Molten, aes(x = year_clu, y = value, colour = variable)) + geom_line()
+
+
+
+
+#plot network
+
+routes_igraph <- graph_from_data_frame(d = edges_by_time[3],
+                                       vertices = nodes_by_time[3],
                                        directed = FALSE)
 
 
+#cluster
+ceb <- cluster_edge_betweenness(routes_igraph)
+#dendPlot(ceb, mode="hclust")
 
-eigen <- eigen_centrality(routes_igraph)
-coreness <- data.frame(graph.coreness(routes_igraph))
-constraint <- igraph::constraint(routes_igraph)
+Num_Clu <- length(unique(ceb$membership))
+Max_Clu <- max(table(ceb$membership))
 
-#cluster <- cluster_edge_betweenness(routes_igraph)
-
-
-
-net_results <- data.frame(eigen$vector, coreness[1], constraint, r_lib$owner_stars, r_lib$owner_date_crea)
-
-routes_igraph <- Network_A3
-
-#plot network
 V(routes_igraph)$size <- 8
 V(routes_igraph)$frame.color <- "white"
-V(routes_igraph)$color <- "orange"
+V(routes_igraph)$color <- ceb$membership
 V(routes_igraph)$label <- "" 
 
 E(routes_igraph)$arrow.mode <- 0
@@ -528,7 +596,10 @@ l <- layout_with_fr(routes_igraph)
 plot(routes_igraph, layout=l)
 
 
+nrow(subset(final_info, temp_login == final_info$temp_login[21541]))
 
+finder <- subset(final_info, temp_login == final_info$temp_login[234])
+length(unique(finder$repo))
+try2 <- finder %>% group_by(repo) %>% count()
 
-
-
+sd(try2$n)
