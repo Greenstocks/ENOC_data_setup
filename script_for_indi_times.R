@@ -85,6 +85,11 @@ for(AG in 1:length(cutoffs)){
 
 #loop contris for timegroups-----
 
+edges_by_time <- list()
+nodes_by_time <- list()
+count_by_time <- list()
+
+
 for(groupies in 1:length(cutoffs)){
   
   
@@ -130,7 +135,23 @@ for(groupies in 1:length(cutoffs)){
       edges_id$temp <- apply(edges_id, 1, function(x) paste(sort(x), collapse= ""))
       
       edges_id$tie_s <- tie[,1]
-      names(edges_id)[4] <- "tie_s"
+      names(edges_id)[4] <- "tie_share_repo"
+      
+      tie <- data.frame()
+      for(share in 1:nrow(edges_id)){
+        find <- subset(edges_start, temp_login == node | temp_login == edges_id$parts_ofc[share])
+        
+        counts <- find %>% group_by(repo) %>% count()
+        dupes <- subset(counts, n > 1)
+        DF2 <- find %>% subset(repo %in% dupes$repo)
+        tie_s <- sum(as.numeric(DF2$n))
+        tie <- rbind(tie, tie_s)
+        
+      }
+      
+      edges_id$tie_s <- tie[,1]
+     
+      names(edges_id)[5] <- "tie_intensity_repo"
       
       edges_time <- rbind(edges_time, edges_id)
       
@@ -141,69 +162,125 @@ for(groupies in 1:length(cutoffs)){
     
   }
   
+  
   a <- edges_time[!duplicated(edges_time$temp),]
-  a <- a[,c(1:2,4)]
-  
-  names(a)[1] <- "from"
-  names(a)[2] <- "to"
-  names(a)[3] <- "strength"
-  
-  edges_new <- a[rep(seq.int(1,nrow(a)), a$strength), 1:2]
   
   
-  nam_e <- paste("Network_E", groupies, sep = "")
-  nam_n <- paste("Network_N", groupies, sep = "")
+  if(nrow(a) != 0){
+    a <- a[,c(1:2,4:5)]
+    names(a)[1] <- "from"
+    names(a)[2] <- "to"
+    names(a)[3] <- "strength_repo"
+    names(a)[4] <- "strength_share"
+  } else {
+    a <- data.frame(matrix(ncol = 4, nrow = 0))
+    
+    colnames(a)[1:4] <- c("from","to", "strength_repo","strength_share")
+    
+  }
+
   
-  assign(paste0(nam_e), edges_new)
+  nam_e <- paste("Edges_Group", groupies, sep = "")
+  nam_n <- paste("Nodes_Group", groupies, sep = "")
+  nam_g <- paste("Count_Group", groupies, sep = "")
+  
+  assign(paste0(nam_e), a)
   assign(paste0(nam_n), age_nodes)
+  assign(paste0(nam_g), edges_start)
+  
+  
+  
+  edges_by_time <- c(edges_by_time, a)
+  nodes_by_time <- c(nodes_by_time, age_nodes)
+  count_by_time <- c(count_by_time, edges_start)
   
   print(nam_e)
 }
 
-edges_by_time <- list(Network_E1, Network_E2, Network_E3, Network_E4, Network_E5, Network_E6, Network_E7, Network_E8, 
-                      Network_E9, Network_E10)
+#save(edges_by_time, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/edges_by_time.Rdata" )
+#save(nodes_by_time, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/nodes_by_time.Rdata" )
+#save(count_by_time, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/count_by_time.Rdata" )
 
 
-nodes_by_time <- list(Network_N1, Network_N2, Network_N3, Network_N4, Network_N5, Network_N6, Network_N7, Network_N8, 
-                      Network_N9, Network_N10)
+
 
 #calculate network props-------
 
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-info-network-Tsed.Rdata" )
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-repos.Rdata")
+
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/edges_by_time.Rdata" )
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/nodes_by_time.Rdata" )
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/count_by_time.Rdata" )
+
+final_info <- drop_na(final_info)
+
 #create whole level network properties of and calculate
 
+
 props_WN_contris <- data.frame()
-for(groupies in 1:length(edges_by_time)){
+indi_res_time <- list()
+
+for(groupies in 1:length(nodes_by_time)){
+  
+  seq <- seq(from = 1, to = (4*15), by=4)
+  
+  edges_simple <- data.frame(edges_by_time[(seq[groupies]):(seq[groupies]+1)])
+  
+  a <- data.frame(edges_by_time[(seq[groupies]):(seq[groupies]+2)])
+  edges_repo_share <- a[rep(seq.int(1,nrow(a)), a$strength_repo), 1:2]
+  
+  a <- data.frame(edges_by_time[c((seq[groupies]):(seq[groupies]+1),(seq[groupies]+3))])
+  edges_repo_intensity <- a[rep(seq.int(1,nrow(a)), a$strength_share), 1:2]
+  
+  
   nam_e <- paste("Time_group_", groupies, sep = "")
   
-  routes_igraph <- graph_from_data_frame(d = edges_by_time[groupies],
-                                         vertices = nodes_by_time[groupies],
+  routes_igraph <- graph_from_data_frame(d = edges_simple,
+                                         vertices = nodes_by_time[groupies+2],
                                          directed = FALSE)
   
   
-  ED <- edge_density(routes_igraph, loops=F)
-  TR <- transitivity(routes_igraph, type="global")
-  DI <- diameter(routes_igraph, directed=F)
+
   
-  MD <- mean_distance(routes_igraph, directed=F)
-  
-  
+  #indi measures
   #centrality
   eigen <- eigen_centrality(routes_igraph)
-  ESD <- sd(eigen[1]$vector)
+  ESD <- eigen[1]$vector
   
   #coreness
   coreness <- data.frame(graph.coreness(routes_igraph))
-  M_cor <- max(coreness[1])
-  SD_cor <- sd(coreness[1]$graph.coreness.routes_igraph.)
   
-  #constraint
-  constraint <- drop_na(data.frame(igraph::constraint(routes_igraph)))
-  SD_con <- sd(constraint[1]$igraph..constraint.routes_igraph.)
+    #constraint
+  constraint <- data.frame(igraph::constraint(routes_igraph))
+  
+  #cluster
+  #clu <- cluster_fast_greedy(routes_igraph)
+  #clu2 <- cluster.distribution(routes_igraph)
+  #clu3 <- cluster_edge_betweenness(routes_igraph)
+  
+  #network measures
+  ED <- edge_density(routes_igraph, loops=F)
+  TR <- transitivity(routes_igraph, type="global")
+  DI <- diameter(routes_igraph, directed=F)
+  MD <- mean_distance(routes_igraph, directed=F)
+  #M_cor <- max(coreness[1])
+  #SD_cor <- sd(coreness[1]$graph.coreness.routes_igraph.)
+  #SD_con <- sd(constraint[1]$igraph..constraint.routes_igraph.)
   
   
   #combine
   
-  net_results <- data.frame(nam_e, ED, TR, DI, MD, ESD, M_cor, SD_cor, SD_con)
-  props_WN_contris <- rbind(props_WN_contris, net_results)
+  net_results <- data.frame(nodes_by_time[groupies+2]$unique.final_info_age_group.temp_login.,
+                            ESD, coreness, constraint)
+  indi_res_time <- c(indi_res_time, net_results)
+  
+  net_results_WN <- data.frame(nam_e, ED, TR, DI, MD)
+  
+  props_WN_contris <- rbind(props_WN_contris, net_results_WN)
   print(nam_e)
 }
+
+test <- data.frame(indi_res_time[21:24])
+
+#for tomorrow: other strengths, repo dynamics, big dataframe for regression
