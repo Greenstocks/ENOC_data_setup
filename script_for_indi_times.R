@@ -221,23 +221,20 @@ final_info <- drop_na(final_info)
 props_WN_contris <- data.frame()
 indi_res_time <- list()
 
+props_WN_contris_strength <- data.frame()
+indi_res_time_strength <- list()
+
 for(groupies in 1:length(nodes_by_time)){
   
-  seq <- seq(from = 1, to = (4*15), by=4)
+  seq <- seq(from = 1, to = 100, by=4)
   
   edges_simple <- data.frame(edges_by_time[(seq[groupies]):(seq[groupies]+1)])
   
-  a <- data.frame(edges_by_time[(seq[groupies]):(seq[groupies]+2)])
-  edges_repo_share <- a[rep(seq.int(1,nrow(a)), a$strength_repo), 1:2]
+ nam_e <- paste("Time_group_", groupies, sep = "")
   
-  a <- data.frame(edges_by_time[c((seq[groupies]):(seq[groupies]+1),(seq[groupies]+3))])
-  edges_repo_intensity <- a[rep(seq.int(1,nrow(a)), a$strength_share), 1:2]
-  
-  
-  nam_e <- paste("Time_group_", groupies, sep = "")
-  
+  #simple net
   routes_igraph <- graph_from_data_frame(d = edges_simple,
-                                         vertices = nodes_by_time[groupies+2],
+                                         vertices = nodes_by_time[groupies],
                                          directed = FALSE)
   
   
@@ -271,16 +268,220 @@ for(groupies in 1:length(nodes_by_time)){
   
   #combine
   
-  net_results <- data.frame(nodes_by_time[groupies+2]$unique.final_info_age_group.temp_login.,
+  net_results <- data.frame(nodes_by_time[groupies]$unique.final_info_age_group.temp_login.,
                             ESD, coreness, constraint)
   indi_res_time <- c(indi_res_time, net_results)
   
   net_results_WN <- data.frame(nam_e, ED, TR, DI, MD)
   
   props_WN_contris <- rbind(props_WN_contris, net_results_WN)
+  
+  #strength net
+  if(nrow(edges_simple) != 0){
+    
+    a <- data.frame(edges_by_time[(seq[groupies]):(seq[groupies]+2)])
+    edges_repo_share <- a[rep(seq.int(1,nrow(a)), a$strength_repo), 1:2]
+    
+    a <- data.frame(edges_by_time[c((seq[groupies]):(seq[groupies]+1),(seq[groupies]+3))])
+    edges_repo_intensity <- a[rep(seq.int(1,nrow(a)), a$strength_share), 1:2]
+    
+    
+    routes_igraph <- graph_from_data_frame(d = edges_simple,
+                                           vertices = nodes_by_time[groupies],
+                                           directed = FALSE)
+    
+    
+    
+    
+    #indi measures
+    #centrality
+    eigen <- eigen_centrality(routes_igraph)
+    ESD <- eigen[1]$vector
+    
+    #coreness
+    coreness <- data.frame(graph.coreness(routes_igraph))
+    
+    #constraint
+    constraint <- data.frame(igraph::constraint(routes_igraph))
+    
+    #cluster
+    #clu <- cluster_fast_greedy(routes_igraph)
+    #clu2 <- cluster.distribution(routes_igraph)
+    #clu3 <- cluster_edge_betweenness(routes_igraph)
+    
+    #network measures
+    ED <- edge_density(routes_igraph, loops=F)
+    TR <- transitivity(routes_igraph, type="global")
+    DI <- diameter(routes_igraph, directed=F)
+    MD <- mean_distance(routes_igraph, directed=F)
+    #M_cor <- max(coreness[1])
+    #SD_cor <- sd(coreness[1]$graph.coreness.routes_igraph.)
+    #SD_con <- sd(constraint[1]$igraph..constraint.routes_igraph.)
+    
+    #combine
+    
+    net_results <- data.frame(nodes_by_time[groupies]$unique.final_info_age_group.temp_login.,
+                              ESD, coreness, constraint)
+    indi_res_time_strength <- c(indi_res_time_strength, net_results)
+    
+    net_results_WN_strength <- data.frame(nam_e, ED, TR, DI, MD)
+    
+    props_WN_contris_strength <- rbind(props_WN_contris_strength, net_results_WN_strength)
+  }
   print(nam_e)
 }
 
-test <- data.frame(indi_res_time[21:24])
 
-#for tomorrow: other strengths, repo dynamics, big dataframe for regression
+#dataframe creation indis without strength----
+
+nodes <- data.frame()
+for(i in 1:17){
+  rest <- data.frame(nodes_by_time[i]$unique.final_info_age_group.temp_login.)
+  nodes <- rbind(nodes, rest)
+}
+
+nodes <- unique(nodes)
+
+colnames(nodes)[1] <- "Nodes"
+
+a <- data.frame(matrix(ncol = 17, nrow = nrow(nodes)))
+
+nodes <- cbind(nodes, a)
+
+
+#loop for ESD
+for(noddies in 1:nrow(nodes)){
+  
+  seq <- seq(from = 1, to = 100, by=4)
+  node_y <- nodes[noddies,1]
+  
+  for(k in 1:17){
+    edges_simple <- data.frame(indi_res_time[(seq[k]):(seq[k]+3)]) 
+    colnames(edges_simple)[1] <- "node"
+    
+    if(node_y %in% edges_simple[,1]){
+      resty <- subset(edges_simple, node == node_y)
+      nodes[(noddies),(k+1)] <- resty[1,2]
+    }
+  }
+  
+  
+}
+
+var_names <- vector()
+for(p in 1:17){
+  nam_e <- paste("ESD_", p, sep = "")
+  var_names <- c(var_names, nam_e)
+}
+
+colnames(nodes)[2:18] <- var_names
+
+
+#loop for coreness
+
+
+a <- data.frame(matrix(ncol = 17, nrow = nrow(nodes)))
+
+nodes <- cbind(nodes, a)
+
+
+for(noddies in 1:nrow(nodes)){
+  
+  seq <- seq(from = 1, to = 100, by=4)
+  node_y <- nodes[noddies,1]
+  
+  for(k in 1:17){
+    edges_simple <- data.frame(indi_res_time[(seq[k]):(seq[k]+3)]) 
+    colnames(edges_simple)[1] <- "node"
+    
+    if(node_y %in% edges_simple[,1]){
+      resty <- subset(edges_simple, node == node_y)
+      nodes[(noddies),(k+18)] <- resty[1,3]
+    }
+  }
+  
+  
+}
+
+var_names <- vector()
+for(p in 1:17){
+  nam_e <- paste("COR_", p, sep = "")
+  var_names <- c(var_names, nam_e)
+}
+
+colnames(nodes)[19:35] <- var_names
+
+#loop for constraint
+
+
+a <- data.frame(matrix(ncol = 17, nrow = nrow(nodes)))
+
+nodes <- cbind(nodes, a)
+
+
+for(noddies in 1:nrow(nodes)){
+  
+  seq <- seq(from = 1, to = 100, by=4)
+  node_y <- nodes[noddies,1]
+  
+  for(k in 1:17){
+    edges_simple <- data.frame(indi_res_time[(seq[k]):(seq[k]+3)]) 
+    colnames(edges_simple)[1] <- "node"
+    
+    if(node_y %in% edges_simple[,1]){
+      resty <- subset(edges_simple, node == node_y)
+      nodes[(noddies),(k+35)] <- resty[1,4]
+    }
+  }
+  
+  
+}
+
+var_names <- vector()
+for(p in 1:17){
+  nam_e <- paste("CONST_", p, sep = "")
+  var_names <- c(var_names, nam_e)
+}
+
+colnames(nodes)[36:52] <- var_names
+
+
+#age_group
+
+a <- data.frame(matrix(ncol = 17, nrow = nrow(nodes)))
+
+nodes <- cbind(nodes, a)
+
+for(t in 1:17){
+  nodes[,(t+52)] <- t
+  
+}
+
+var_names <- vector()
+for(p in 1:17){
+  nam_e <- paste("AGE_", p, sep = "")
+  var_names <- c(var_names, nam_e)
+}
+
+colnames(nodes)[53:69] <- var_names
+
+#data_frame for analysis
+
+seq <- seq(from = 2, to = 300, by=17)
+final <- data.frame()
+
+for(p in 1:nrow(nodes)){
+  
+  for(t in 0:16){
+    had <- c(nodes[p,1],nodes[p,seq[1]+t], nodes[p,seq[2]+t], nodes[p,seq[3]+t], nodes[p,seq[4]+t])
+    final <- rbind(final, had)
+  }
+}
+
+colnames(final) <- c("Node", "ESD", "COR", "CON", "AGE")
+final$COR <- as.numeric(final$COR)  
+final$AGE <- as.numeric(final$AGE)  
+
+intercept.only.model <- lmer(COR ~ AGE + (AGE | Node), data = final, REML = TRUE)
+summary(intercept.only.model)
+ranef(intercept.only.model)
