@@ -485,3 +485,8 @@ final$AGE <- as.numeric(final$AGE)
 intercept.only.model <- lmer(COR ~ AGE + (AGE | Node), data = final, REML = TRUE)
 summary(intercept.only.model)
 ranef(intercept.only.model)
+
+hist(as.numeric(final$CON))
+
+
+df <- data.frame(count_by_time[10:12])
