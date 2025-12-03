@@ -89,7 +89,6 @@ edges_by_time <- list()
 nodes_by_time <- list()
 count_by_time <- list()
 
-
 for(groupies in 1:length(cutoffs)){
   
   
@@ -482,11 +481,76 @@ colnames(final) <- c("Node", "ESD", "COR", "CON", "AGE")
 final$COR <- as.numeric(final$COR)  
 final$AGE <- as.numeric(final$AGE)  
 
-intercept.only.model <- lmer(COR ~ AGE + (AGE | Node), data = final, REML = TRUE)
-summary(intercept.only.model)
-ranef(intercept.only.model)
-
-hist(as.numeric(final$CON))
+#save(final, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/values_node_by_time_no_strength.Rdata" )
 
 
-df <- data.frame(count_by_time[10:12])
+
+#analysis-----------
+
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/edges_by_time.Rdata" )
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/nodes_by_time.Rdata" )
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/count_by_time.Rdata" )
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/values_node_by_time_no_strength.Rdata" )
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-info-network-Tsed.Rdata" )
+load("Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/r-lib-repos.Rdata")
+
+final <- drop_na(final)
+final <- subset(final, CON != NaN)
+
+counts_repos <- final_info %>%
+  group_by(temp_login) %>%
+  count(repo)
+
+merge <- merge(counts_repos, r_lib, by.x = "repo", by.y="owner_reps")
+
+
+
+contributer <- unique(final_info$temp_login)
+
+df2 <- data.frame()
+for(id in 1:nrow(r_lib)){
+  df <- data.frame(contributer, r_lib$owner_reps[id])
+  df2 <- rbind(df2,df)
+}
+
+colnames(df2)[2] <- "repo"
+
+df <- merge(df2, r_lib, by.x = "repo", by.y="owner_reps")
+
+
+final_test <- subset(final, AGE == 16)
+
+df <- merge(df, final_test, by.x = "contributer", by.y="Node")
+df <- drop_na(df)
+
+
+temp <- data.frame()
+for(id in 1:nrow(df)){
+  
+  tempy <- nrow(subset(final_info, temp_login == df[id,1] & repo == df[id,2]))
+  temp <- rbind(temp, tempy)
+  print(id)
+}
+
+df3 <- cbind(df, temp)
+
+df4 <- drop_na(df3)
+
+df5 <- subset(df4, X0L != 0)
+df5$ESD <- as.numeric(df5$ESD)
+df5$CON <- as.numeric(df5$CON)
+df5$test <- df5$X0L/(df5$owner_forks+1)
+
+mod <- lmer(owner_stars ~ ESD + COR + CON + X0L + (1|repo), data=df5)
+summary(mod)
+ranef(mod)
+
+df5$ESD <- log(df5$ESD )
+df5$owner_stars <- log(df5$owner_stars )
+df5 <- drop_na(df5)
+df5 <- subset(df5, owner_stars >= 0)
+
+
+mod <- lmer(owner_stars ~ ESD + COR + CON + X0L + (1|repo), data=df5)
+summary(mod)
+ranef(mod)

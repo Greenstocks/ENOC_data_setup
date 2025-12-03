@@ -57,6 +57,8 @@ r_lib <- data.frame(owner_reps, owner_stars,owner_date_crea,owner_date_update, o
 
 result <- data.frame()
 #get all contributors of repos
+
+
 for(id in 1:nrow(r_lib)){
   my_contris <- gh("GET /repos/{owner}/{repo}/contributors", owner = "r-lib", repo =r_lib[id,1], per_page = 100)
   contris <- vapply(my_contris, "[[", "", "login")
@@ -549,8 +551,14 @@ for(groupies in 1:length(edges_by_time)){
   print(nam_e)
 }
 
-#plots----------
+#save(props, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/repo_props.Rdata" )
+#save(edges_by_time, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/edges_by_time_props.Rdata" )
+#save(nodes_by_time, file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/nodes_by_time_props.Rdata" )
 
+#plots----------
+load(file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/edges_by_time_props.Rdata" )
+load(file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/nodes_by_time_props.Rdata" )
+load(file = "Q:/Projekte/DFG_ENOC/R/ENOC_data_setup/repo_props.Rdata" )
 library(ggplot2)
 library(reshape)
 
@@ -566,6 +574,9 @@ for(cols in 1:(ncol(props2)-1)){
 }
 
 Molten <- melt(props2, id.vars = "year_clu")
+colnames(Molten)[2] <- "variable"
+Molten$variable <- as.character(Molten$variable)
+Molten <- subset(Molten, variable == "ED" | variable == "M_cor")
 ggplot(Molten, aes(x = year_clu, y = value, colour = variable)) + geom_line()
 
 
@@ -573,8 +584,8 @@ ggplot(Molten, aes(x = year_clu, y = value, colour = variable)) + geom_line()
 
 #plot network
 
-routes_igraph <- graph_from_data_frame(d = edges_by_time[3],
-                                       vertices = nodes_by_time[3],
+routes_igraph <- graph_from_data_frame(d = edges_by_time[17:18],
+                                       
                                        directed = FALSE)
 
 
